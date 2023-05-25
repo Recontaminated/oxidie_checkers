@@ -73,4 +73,4 @@ jobs:
           draft: true
           files: "oxidie_checkers-*"
           body_path: Changes.md
-        if: matrix.toolchain == 'stable' && startsWith( github.ref, 'refs/tags/v' )
+        if: startsWith( github.ref, 'refs/tags/v' )
