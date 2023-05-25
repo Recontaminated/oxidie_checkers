@@ -73,4 +73,3 @@ jobs:
           draft: true
           files: "oxidie_checkers-*"
           body_path: Changes.md
-        if: startsWith( github.ref, 'refs/tags/v' )
