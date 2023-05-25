@@ -6,3 +6,6 @@ written in response to Max's Cpp checkers engine
 
 “Even the finest sword plunged into salt water will eventually rust.”
 ― Sun Tzu The Art of War
+# how to run
+Don't have rust or you dont want to build from souce?
+Head over to the **actions** tab and download the prebuilt binary for your system under artifacts!
