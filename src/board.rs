@@ -1,4 +1,4 @@
-use std::fs;
+
 pub struct GameState {
     pub game: CheckersBitboard,
     pub turnWhite: bool,
@@ -20,7 +20,7 @@ impl GameState {
         let to = 63 - to;
         let from = from as usize;
         let to = to as usize;
-        let mut mask = CheckersBitboard::mask_position(from / 8, from % 8);
+        let mask = CheckersBitboard::mask_position(from / 8, from % 8);
         let mut piece = 0;
         println!("MASK IS {:064b}", mask);
         print!("BLACK PIECES {:064b}", self.game.black_pieces);
@@ -65,7 +65,7 @@ impl GameState {
         let state_string = parts.nth(0).unwrap();
         // let turn_string = parts.nth(1).unwrap();
 
-        let mut game = CheckersBitboard::new();
+        let game = CheckersBitboard::new();
         let mut row = 0;
         let mut col = 0;
         for c in state_string.chars() {
@@ -198,7 +198,7 @@ impl CheckersBitboard {
 
     }
     pub fn pretty_print_bitboard(bitboard: u64) {
-        let mut bitboard = bitboard;
+        let bitboard = bitboard;
         for row in 0..8 {
             for col in 0..8 {
                 print!(
@@ -229,7 +229,7 @@ impl CheckersBitboard {
         }
 
         //check if black_piece is None
-        if( black_piece.is_none()){
+        if black_piece.is_none() {
             self.black_pieces &= !mask;
             self.white_pieces &= !mask;
             self.black_kings &= !mask;
