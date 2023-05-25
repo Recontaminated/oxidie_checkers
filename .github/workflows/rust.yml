@@ -3,7 +3,8 @@ on:
     branches:
       - "**"
   pull_request:
-
+permissions:
+  contents: write
 env:
   CRATE_NAME: oxidie_checkers
   GITHUB_TOKEN: ${{ github.token }}
