@@ -72,4 +72,3 @@ jobs:
         with:
           draft: true
           files: "oxidie_checkers-*"
-          body_path: Changes.md
