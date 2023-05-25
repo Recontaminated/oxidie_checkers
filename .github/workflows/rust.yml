@@ -71,4 +71,4 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          files: "oxidie_checkers-*"
+          files: "oxidie_checkers*"
