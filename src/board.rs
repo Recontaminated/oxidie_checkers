@@ -6,13 +6,14 @@ pub struct GameState {
 impl GameState {
     pub fn startingPos() -> GameState {
         // open file
-        let file = fs::read_to_string("src/startState.txt").expect("Unable to read file");
+        // let file = fs::read_to_string("src/startState.txt").expect("Unable to read file");
+        const startingString:&str = "1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1 w";
         let game = CheckersBitboard::new();
         let mut state = GameState {
             game: game,
             turnWhite: true,
         };
-        state.loadFromString(&file).unwrap();
+        state.loadFromString(startingString);
         state
     }
     pub fn movePiece(&mut self, from: u8, to: u8){
@@ -53,7 +54,7 @@ impl GameState {
             _ => panic!("Invalid piece"),
         }
     }
-    pub fn loadFromString(&mut self, boardString: &String) -> Result<CheckersBitboard, &'static str> {
+    pub fn loadFromString(&mut self, boardString: &str) -> Result<CheckersBitboard, &'static str> {
         // split sting at whitespace
         let mut parts = boardString.split_whitespace();
         // check if there are 8 parts
