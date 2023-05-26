@@ -1,4 +1,4 @@
-use crate::generation;
+use crate::{generation, utils::{self, pretty_print_bitboard}};
 
 pub struct GameState {
     pub game: CheckersBitboard,
@@ -8,7 +8,7 @@ impl GameState {
     pub fn startingPos() -> GameState {
         // open file
         // let file = fs::read_to_string("src/startState.txt").expect("Unable to read file");
-        const startingString:&str = "1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1 w";
+        const startingString: &str = "1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1 w";
         let game = CheckersBitboard::new(true);
         let mut state = GameState {
             game: game,
@@ -17,45 +17,11 @@ impl GameState {
         state.loadFromString(startingString);
         state
     }
-    pub fn movePiece(self: &mut GameState, from: u8, to: u8){
-        let to = 63 - to;
-        let from = from as usize;
-        let to = to as usize;
-        let mask = CheckersBitboard::mask_position(from / 8, from % 8);
-        let mut piece = 0;
-        println!("MASK IS {:064b}", mask);
-        print!("BLACK PIECES {:064b}", self.game.black_pieces);
-        println!("MASK IS {}", self.game.black_pieces & mask);
-        if self.game.black_pieces & mask != 0 {
-            piece = 1;
-        } else if self.game.white_pieces & mask != 0 {
-            piece = 2;
-        } else if self.game.black_kings & mask != 0 {
-            piece = 3;
-        } else if self.game.white_kings & mask != 0 {
-            piece = 4;
-        }
-        match piece {
-            1 => {
-                self.game.black_pieces &= !mask;
-                self.game.black_pieces |= 1u64 << to;
-            }
-            2 => {
-                self.game.white_pieces &= !mask;
-                self.game.white_pieces |= 1u64 << to;
-            }
-            3 => {
-                self.game.black_kings &= !mask;
-                self.game.black_kings |= 1u64 << to;
-            }
-            4 => {
-                self.game.white_kings &= !mask;
-                self.game.white_kings |= 1u64 << to;
-            }
-            _ => panic!("Invalid piece"),
-        }
-    }
-    pub fn loadFromString(self: &mut GameState, boardString: &str) -> Result<CheckersBitboard, &'static str> {
+
+    pub fn loadFromString(
+        self: &mut GameState,
+        boardString: &str,
+    ) -> Result<CheckersBitboard, &'static str> {
         // split sting at whitespace
         let mut parts = boardString.split_whitespace();
         // check if there are 8 parts
@@ -76,7 +42,7 @@ impl GameState {
                     col = 0;
                 }
                 'b' | 'w' | 'B' | 'W' => {
-                     match c {
+                    match c {
                         'b' => self.game.set_position(row, col, Some(true), false),
                         'w' => self.game.set_position(row, col, Some(false), false),
                         'B' => self.game.set_position(row, col, Some(true), true),
@@ -97,33 +63,37 @@ impl GameState {
         }
         Ok(game)
     }
-
-
 }
-#[derive(Debug)]
-pub struct Move{
-    from: u8,
-    to: u8,
+#[derive(Debug, Clone)]
+pub struct Move {
+    sub_moves: Vec<(u8,u8)>,//from,tp
+
 }
 impl Move {
-    fn new(from: u8, to: u8) -> Move {
-        Move {
-            from: from,
-            to: to,
+
+        fn new(from: u8, to: u8) -> Move {
+            Move {
+                sub_moves: vec![(from, to)],
+            }
         }
+    fn append_moves_from(self: &mut Move, other: &Move) {
+        self.sub_moves.extend_from_slice(&other.sub_moves);
     }
     fn print(self: &Move) -> String {
-        let conversion = ["A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8",
-                          "A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7",
-                          "A6", "B6", "C6", "D6", "E6", "F6", "G6", "H6",
-                          "A5", "B5", "C5", "D5", "E5", "F5", "G5", "H5",
-                          "A4", "B4", "C4", "D4", "E4", "F4", "G4", "H4",
-                          "A3", "B3", "C3", "D3", "E3", "F3", "G3", "H3",
-                          "A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2",
-                          "A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1"];
+        let conversion = [
+            "A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8", "A7", "B7", "C7", "D7", "E7", "F7",
+            "G7", "H7", "A6", "B6", "C6", "D6", "E6", "F6", "G6", "H6", "A5", "B5", "C5", "D5",
+            "E5", "F5", "G5", "H5", "A4", "B4", "C4", "D4", "E4", "F4", "G4", "H4", "A3", "B3",
+            "C3", "D3", "E3", "F3", "G3", "H3", "A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2",
+            "A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1",
+        ];
         let mut pretty_move = String::new();
-        pretty_move += conversion[self.from as usize];
-        pretty_move += conversion[self.to as usize];
+        for (from, to) in self.sub_moves.iter() {
+            pretty_move.push_str(conversion[*from as usize]);
+            pretty_move.push_str(" -> ");
+            pretty_move.push_str(conversion[*to as usize]);
+            pretty_move.push_str("\n");
+        }
         pretty_move
     }
 }
@@ -133,16 +103,13 @@ pub struct Piece {
     pub is_king: bool,
 }
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct CheckersBitboard {
     pub black_pieces: u64,
     pub white_pieces: u64,
     pub black_kings: u64,
     pub white_kings: u64,
-    pub white_move: bool
 }
-
 
 impl CheckersBitboard {
     pub fn new(side: bool) -> Self {
@@ -151,11 +118,7 @@ impl CheckersBitboard {
             white_pieces: 0,
             black_kings: 0,
             white_kings: 0,
-            white_move: side
         }
-    }
-    pub fn get_white_to_move(&self) -> bool {
-        self.white_move
     }
 
     // pub fn get_moves(&self) -> Vec<CheckersBitboard>{
@@ -166,85 +129,175 @@ impl CheckersBitboard {
     //     let empty_square = !(self.black_pieces | self.white_pieces | self.black_kings | self.white_kings);
     //     let mut moves = Vec::new();
 
-        
-
-    // } 
-    pub fn get_jumps(self: &CheckersBitboard, sideWhite:bool){
-        let empty_squares = !(self.black_pieces | self.white_pieces | self.black_kings | self.white_kings);
+    // }
+    pub fn get_jumps(self: &CheckersBitboard, sideWhite: bool) {
+        let empty_squares =
+            !(self.black_pieces | self.white_pieces | self.black_kings | self.white_kings);
         // let mut moves = Vec::new();
-        let takeable = (empty_squares >>7 ) & if !sideWhite {self.black_pieces | self.black_kings} else {self.white_pieces | self.white_kings};
-        Self::pretty_print_bitboard(takeable);
+        let takeable = (empty_squares >> 7)
+            & if !sideWhite {
+                self.black_pieces | self.black_kings
+            } else {
+                self.white_pieces | self.white_kings
+            };
+        utils::pretty_print_bitboard(takeable);
         // print!("{:064b}", self.white_pieces)
         println!();
-        Self::pretty_print_bitboard(empty_squares);
-        
-        
-
-
+        utils::pretty_print_bitboard(empty_squares);
     }
-    pub fn get_non_capture_moves(self: &CheckersBitboard) -> Vec<Move> {
+    fn get_captures(&self, square: u8, white_to_move: bool) -> Vec<Move> {
+        
+        let (attacking_pieces, defending_pieces, lookup_index) = if white_to_move {
+            (
+                self.white_pieces | self.white_kings,
+                self.black_pieces | self.black_kings,
+                0,
+            )
+        } else {
+            (
+                self.black_pieces | self.black_kings,
+                self.white_pieces | self.white_kings,
+                1,
+            )
+        };
+    
+        let all_occ = attacking_pieces | defending_pieces;
+  
+        let mut moves: Vec<Move> = Vec::new();
+    
+        let bb = 1u64 << (63-square) & (attacking_pieces | self.white_kings | self.black_kings);
+        if bb == 0 {
+            println!("no piece on square {}", square);
+            return moves;
+        }
+    
+        let att_men = generation::LOOKUP_TABLE.all_capturing_moves[lookup_index][square as usize];
+        println!("searching for captures from square {}", square);
+        // utils::pretty_print_bitboard(att_men);
+        let att_king = generation::LOOKUP_TABLE.all_capturing_moves[2][square as usize];
+    
+        let att = if (1u64 << square) & (self.white_kings | self.black_kings) != 0 {
+            att_king
+        } else {
+            att_men
+        };
+        // utils::pretty_print_bitboard(att);
+        // println!("lookup index: {}", lookup_index);
+        utils::pretty_print_bitboard(att);
+        println!("");
+        let mut att_temp = att & !all_occ;
+        while att_temp != 0 {
+            let end = utils::lsb_idx(&att_temp);
+            println!("possible attack to {}", end);
+            att_temp &= att_temp - 1;
+
+            pretty_print_bitboard(defending_pieces);
+            println!();
+            pretty_print_bitboard(1u64 << (63-((square + end as u8) / 2)));
+            if ((1u64 << (63 -(((square) + end as u8) / 2)) & defending_pieces)) != 0 {
+                println!("found capture to {}", end);
+                let partial_move = Move::new(square, end as u8);
+    
+                let mut next_bitboard = *self;
+                next_bitboard.move_piece(square, end as u8);
+                let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
+    
+                if temp_moves.is_empty() || (end / 8 == 0 || end / 8 == 7) {
+                    moves.push(partial_move);
+                } else {
+                    for temp_move in temp_moves {
+                        let mut concat_move = partial_move.clone();
+                        concat_move.append_moves_from(&temp_move);
+                        moves.push(concat_move);
+                    }
+                }
+            }
+        }
+    
+        moves
+    }
+    pub fn get_all_captures(self: &CheckersBitboard, white_to_move: bool) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
 
-        let all_pieces = self.white_pieces | self.white_kings | self.black_pieces | self.black_kings;
-    
-        let pieces_to_move = if self.get_white_to_move() { self.white_pieces | self.white_kings } else { self.black_pieces | self.black_kings };
+        let pieces_to_move = if white_to_move {
+            self.white_pieces | self.white_kings
+        } else {
+            self.black_pieces | self.black_kings
+        };
 
-    
         let mut pieces_to_move_copy = pieces_to_move;
+
         while pieces_to_move_copy != 0 {
             let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
-            
 
             pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
-            // Self::pretty_print_bitboard(pieces_to_move_copy);
-            // println!();
-            println!("LSB index: {}", lsb_index);
-            let pushes = if self.get_white_to_move() {
+                                      
+            let temp_moves = self.get_captures(lsb_index as u8, white_to_move);
+            println!("testing {:?}", lsb_index);
+
+            for temp_move in temp_moves {
+                moves.push(temp_move);
+            }
+        }
+
+        moves
+    }
+    
+    pub fn get_non_capture_moves(self: &CheckersBitboard, white_to_move: bool) -> Vec<Move> {
+        let mut moves: Vec<Move> = Vec::new();
+
+        let all_pieces =
+            self.white_pieces | self.white_kings | self.black_pieces | self.black_kings;
+
+        let pieces_to_move = if white_to_move {
+            self.white_pieces | self.white_kings
+        } else {
+            self.black_pieces | self.black_kings
+        };
+
+        let mut pieces_to_move_copy = pieces_to_move;
+
+        while pieces_to_move_copy != 0 {
+            let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
+
+            pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
+                                                            // Self::pretty_print_bitboard(pieces_to_move_copy);
+                                                            // println!();
+
+            let pushes = if white_to_move {
                 generation::LOOKUP_TABLE.all_non_capturing_moves[0][lsb_index as usize]
             } else {
                 generation::LOOKUP_TABLE.all_non_capturing_moves[1][lsb_index as usize]
             };
-            Self::pretty_print_bitboard(pushes);
-            println!();
-            let mut att_temp = pushes & !all_pieces;// bitboard of all moves not occupied by any piece
+
+            let mut att_temp = pushes & !all_pieces; // bitboard of all moves not occupied by any piece
             while att_temp != 0 {
-                let end = 63 - att_temp.trailing_zeros();
+                let end = utils::lsb_idx(&att_temp);
                 att_temp &= att_temp - 1;
-    
+
                 moves.push(Move::new(lsb_index as u8, end as u8));
-          
             }
         }
         moves
     }
-    pub fn pretty_print_bitboard(bitboard: u64) {
-        let bitboard = bitboard;
-        for row in 0..8 {
-            for col in 0..8 {
-                print!(
-                    "{}",
-                    if bitboard & 1u64 << 63 - (row * 8 + col) != 0 {
-                        "1"
-                    } else {
-                        "0"
-                    }
-                );
-            }
-            println!();
-        }
-    }
+
     fn mask_position(row: usize, col: usize) -> u64 {
         1u64 << 63 - (row * 8 + col)
     }
 
-    pub fn set_position(&mut self, row: usize, col: usize, black_piece: Option<bool>, king_piece: bool) {
+    pub fn set_position(
+        &mut self,
+        row: usize,
+        col: usize,
+        black_piece: Option<bool>,
+        king_piece: bool,
+    ) {
         let mask = Self::mask_position(row, col);
-        if black_piece.is_none() == false{
-            if black_piece.unwrap() == false{
-            println!("white piece at row: {}, col: {}", row, col);
-            print!("mask is: ");
-            print!("{:064b}", mask);
-
+        if black_piece.is_none() == false {
+            if black_piece.unwrap() == false {
+                println!("white piece at row: {}, col: {}", row, col);
+                print!("mask is: ");
+                print!("{:064b}", mask);
             }
         }
 
@@ -258,26 +311,59 @@ impl CheckersBitboard {
         }
 
         let black_piece = black_piece.unwrap();
-        if king_piece{
-            if  black_piece{
+        if king_piece {
+            if black_piece {
                 self.black_kings |= mask;
-            }else{
+            } else {
                 self.white_kings |= mask;
             }
-        }
-        else{
-            if  black_piece{
+        } else {
+            if black_piece {
                 self.black_pieces |= mask;
-            }else{
+            } else {
                 self.white_pieces |= mask;
             }
         }
-
-
-
-        
     }
-        pub fn printBoard(&self) {
+    pub fn move_piece(self: &mut CheckersBitboard, from: u8, to: u8) {
+        let from = from as usize;
+        let to = to as usize;
+        let mask = CheckersBitboard::mask_position(from / 8, from % 8);
+        utils::pretty_print_bitboard(self.white_pieces);
+        let mut piece = 0;
+        if self.black_pieces & mask != 0 {
+            piece = 1;
+        } else if self.white_pieces & mask != 0 {
+            piece = 2;
+        } else if self.black_kings & mask != 0 {
+            piece = 3;
+        } else if self.white_kings & mask != 0 {
+            piece = 4;
+        }
+        print!("piece is: {}", piece);
+        let to = 63 - to;
+        match piece {
+            1 => {
+                self.black_pieces &= !mask;
+                self.black_pieces |= 1u64 << to;
+            }
+            2 => {
+                self.white_pieces &= !mask;
+                self.white_pieces |= 1u64 << to;
+            }
+            3 => {
+                self.black_kings &= !mask;
+                self.black_kings |= 1u64 << to;
+            }
+            4 => {
+                self.white_kings &= !mask;
+                self.white_kings |= 1u64 << to;
+            }
+            _ => panic!("Invalid piece"),
+        }
+    }
+
+    pub fn printBoard(&self) {
         let numsToLetters = [' ', '○', '●', '○', '●'];
         println!("|---|---|---|---|---|---|---|---|");
         for row in 0..8 {
@@ -294,20 +380,22 @@ impl CheckersBitboard {
                 } else if self.white_kings & mask != 0 {
                     piece = 4;
                 }
+                if piece == 0 {
+                    //print the square number but dont make the numbers overflow
+                    if row * 8 + col < 10 {
+                        print!(" {} |", row * 8 + col);
+                    } else {
+                        print!("{} |", row * 8 + col);
+                    }
+                    continue;
+                }
                 print!(" {} |", numsToLetters[piece]);
             }
             println!("\n|---|---|---|---|---|---|---|---|");
         }
     }
-
-}    
+}
 // impl CheckersBitboard {
-
-
-    
-
-
-
 
 //     pub fn loadFromString(boardString: &String) -> Result<CheckersBitboard, &'static str> {
 //         // split sting at whitespace
