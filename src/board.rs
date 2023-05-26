@@ -200,9 +200,14 @@ impl CheckersBitboard {
     
                 let mut next_bitboard = *self;
                 next_bitboard.move_piece(square, end as u8);
+                println!("\n\n TESTING NEXT MOVE");
+                next_bitboard.printBoard();
+                println!("\n\n");
+
                 let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
     
                 if temp_moves.is_empty() || (end / 8 == 0 || end / 8 == 7) {
+                    println!("next move is empty or on edge, pushing partial move");
                     moves.push(partial_move);
                 } else {
                     for temp_move in temp_moves {
