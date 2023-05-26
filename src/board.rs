@@ -130,22 +130,8 @@ impl CheckersBitboard {
     //     let mut moves = Vec::new();
 
     // }
-    pub fn get_jumps(self: &CheckersBitboard, sideWhite: bool) {
-        let empty_squares =
-            !(self.black_pieces | self.white_pieces | self.black_kings | self.white_kings);
-        // let mut moves = Vec::new();
-        let takeable = (empty_squares >> 7)
-            & if !sideWhite {
-                self.black_pieces | self.black_kings
-            } else {
-                self.white_pieces | self.white_kings
-            };
-        utils::pretty_print_bitboard(takeable);
-        // print!("{:064b}", self.white_pieces)
-        println!();
-        utils::pretty_print_bitboard(empty_squares);
-    }
-    fn get_captures(&self, square: u8, white_to_move: bool) -> Vec<Move> {
+
+    pub fn get_captures(&self, square: u8, white_to_move: bool) -> Vec<Move> {
         
         let (attacking_pieces, defending_pieces, lookup_index) = if white_to_move {
             (
@@ -167,12 +153,10 @@ impl CheckersBitboard {
     
         let bb = 1u64 << (63-square) & (attacking_pieces | self.white_kings | self.black_kings);
         if bb == 0 {
-            println!("no piece on square {}", square);
             return moves;
         }
     
         let att_men = generation::LOOKUP_TABLE.all_capturing_moves[lookup_index][square as usize];
-        println!("searching for captures from square {}", square);
         // utils::pretty_print_bitboard(att_men);
         let att_king = generation::LOOKUP_TABLE.all_capturing_moves[2][square as usize];
     
@@ -188,26 +172,22 @@ impl CheckersBitboard {
         let mut att_temp = att & !all_occ;
         while att_temp != 0 {
             let end = utils::lsb_idx(&att_temp);
-            println!("possible attack to {}", end);
             att_temp &= att_temp - 1;
 
             pretty_print_bitboard(defending_pieces);
             println!();
             pretty_print_bitboard(1u64 << (63-((square + end as u8) / 2)));
             if ((1u64 << (63 -(((square) + end as u8) / 2)) & defending_pieces)) != 0 {
-                println!("found capture to {}", end);
                 let partial_move = Move::new(square, end as u8);
     
                 let mut next_bitboard = *self;
                 next_bitboard.move_piece(square, end as u8);
-                println!("\n\n TESTING NEXT MOVE");
                 next_bitboard.printBoard();
                 println!("\n\n");
 
                 let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
     
                 if temp_moves.is_empty() || (end / 8 == 0 || end / 8 == 7) {
-                    println!("next move is empty or on edge, pushing partial move");
                     moves.push(partial_move);
                 } else {
                     for temp_move in temp_moves {
@@ -238,7 +218,6 @@ impl CheckersBitboard {
             pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
                                       
             let temp_moves = self.get_captures(lsb_index as u8, white_to_move);
-            println!("testing {:?}", lsb_index);
 
             for temp_move in temp_moves {
                 moves.push(temp_move);
