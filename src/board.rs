@@ -178,7 +178,7 @@ impl CheckersBitboard {
     
                 let mut next_bitboard = *self;
                 next_bitboard.move_piece(square, end as u8);
-                println!("\n\n");
+                
 
                 let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
     
@@ -316,6 +316,13 @@ impl CheckersBitboard {
             }
         }
     }
+    pub fn apply_move(self: &mut CheckersBitboard, mov: &Move) {
+        for sub_move in &mov.sub_moves{
+            let (from, to) = sub_move;
+            self.move_piece(*from, *to);
+        }
+    }
+
     pub fn move_piece(self: &mut CheckersBitboard, from: u8, to: u8) {
         let from = from as usize;
         let to = to as usize;
@@ -330,8 +337,7 @@ impl CheckersBitboard {
         } else if self.white_kings & mask != 0 {
             piece = 4;
         }
-        print!("piece is: {}", piece);
-        let to = 63 - to;
+        let to = 63 - to; // because we are bitshifting from bottom right we have to flip the board
         match piece {
             1 => {
                 self.black_pieces &= !mask;

@@ -1,6 +1,7 @@
 mod utils;
 mod board;
 mod generation;
+mod algo;
 
 fn main() {
     println!("Hello, world!");
@@ -12,6 +13,11 @@ fn main() {
         board.game.get_all_legal_moves().iter().for_each(|x| {
             println!("{:?} ", x);
         });
+        let timestart = std::time::Instant::now();
+        println!("seaching depth 12");
+        algo::get_best_move(&board.game, 12);
+        println!("Time taken: {:?}", timestart.elapsed());
+
         //ask for input
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).expect("Failed to read line");
