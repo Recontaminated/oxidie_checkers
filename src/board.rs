@@ -1,3 +1,4 @@
+use crate::generation;
 
 pub struct GameState {
     pub game: CheckersBitboard,
@@ -8,7 +9,7 @@ impl GameState {
         // open file
         // let file = fs::read_to_string("src/startState.txt").expect("Unable to read file");
         const startingString:&str = "1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1 w";
-        let game = CheckersBitboard::new();
+        let game = CheckersBitboard::new(true);
         let mut state = GameState {
             game: game,
             turnWhite: true,
@@ -16,7 +17,7 @@ impl GameState {
         state.loadFromString(startingString);
         state
     }
-    pub fn movePiece(&mut self, from: u8, to: u8){
+    pub fn movePiece(self: &mut GameState, from: u8, to: u8){
         let to = 63 - to;
         let from = from as usize;
         let to = to as usize;
@@ -54,7 +55,7 @@ impl GameState {
             _ => panic!("Invalid piece"),
         }
     }
-    pub fn loadFromString(&mut self, boardString: &str) -> Result<CheckersBitboard, &'static str> {
+    pub fn loadFromString(self: &mut GameState, boardString: &str) -> Result<CheckersBitboard, &'static str> {
         // split sting at whitespace
         let mut parts = boardString.split_whitespace();
         // check if there are 8 parts
@@ -65,7 +66,7 @@ impl GameState {
         let state_string = parts.nth(0).unwrap();
         // let turn_string = parts.nth(1).unwrap();
 
-        let game = CheckersBitboard::new();
+        let game = CheckersBitboard::new(true);
         let mut row = 0;
         let mut col = 0;
         for c in state_string.chars() {
@@ -99,6 +100,33 @@ impl GameState {
 
 
 }
+#[derive(Debug)]
+pub struct Move{
+    from: u8,
+    to: u8,
+}
+impl Move {
+    fn new(from: u8, to: u8) -> Move {
+        Move {
+            from: from,
+            to: to,
+        }
+    }
+    fn print(self: &Move) -> String {
+        let conversion = ["A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8",
+                          "A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7",
+                          "A6", "B6", "C6", "D6", "E6", "F6", "G6", "H6",
+                          "A5", "B5", "C5", "D5", "E5", "F5", "G5", "H5",
+                          "A4", "B4", "C4", "D4", "E4", "F4", "G4", "H4",
+                          "A3", "B3", "C3", "D3", "E3", "F3", "G3", "H3",
+                          "A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2",
+                          "A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1"];
+        let mut pretty_move = String::new();
+        pretty_move += conversion[self.from as usize];
+        pretty_move += conversion[self.to as usize];
+        pretty_move
+    }
+}
 
 pub struct Piece {
     pub is_black: bool,
@@ -106,71 +134,28 @@ pub struct Piece {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CheckersBitboard {
     pub black_pieces: u64,
     pub white_pieces: u64,
     pub black_kings: u64,
     pub white_kings: u64,
+    pub white_move: bool
 }
 
 
 impl CheckersBitboard {
-    pub fn pregen_moves() -> [[u64; 64];3] {
-        println!("Pregenerating moves...");
-        let mut moves = [[0u64; 64]; 3];
-
-        for i in 0..64 {
-            let position:u64 = 1u64 << 63- i;
-            //if we arent on the top row, or the left column or right
-            if (i % 8 != 0) && (i > 7) && (i % 8 != 7) {
-                moves[0][i] |= position << 7;
-                moves[0][i] |= position << 9;
-         
-            }
-            // if we are in left col but not top row
-            else if (i % 8 == 0) && (i > 7) {
-                moves[0][i] |= position << 9;
-            }
-            // if we are in right col but not top row
-            else if (i % 8 == 7) && (i > 7) {
-                moves[0][i] |= position << 7;
-            }
-        
-            // if we arent on the bottom row or left or right column
-            if (i < 56) && (i % 8 != 0) && (i % 8 != 7) {
-                moves[1][i] |= position >> 7;
-                moves[1][i] |= position >> 9;
-            }
-            // if we are in left col but not bottom row
-            else if (i % 8 == 0) && (i < 56) {
-                moves[1][i] |= position >> 9;
-            }
-            // if we are in right col but not bottom row
-            else if (i % 8 == 7) && (i < 56) {
-                moves[1][i] |= position >> 7;
-            }
-
-
-
-            moves[2][i] = moves[0][i] | moves[1][i];
-
-        }
-        
-        moves
-        
-        }
-
-
-    
-    pub fn new() -> Self {
+    pub fn new(side: bool) -> Self {
         Self {
             black_pieces: 0,
             white_pieces: 0,
             black_kings: 0,
             white_kings: 0,
-    
+            white_move: side
         }
+    }
+    pub fn get_white_to_move(&self) -> bool {
+        self.white_move
     }
 
     // pub fn get_moves(&self) -> Vec<CheckersBitboard>{
@@ -184,7 +169,7 @@ impl CheckersBitboard {
         
 
     // } 
-    pub fn get_jumps(&self, sideWhite:bool){
+    pub fn get_jumps(self: &CheckersBitboard, sideWhite:bool){
         let empty_squares = !(self.black_pieces | self.white_pieces | self.black_kings | self.white_kings);
         // let mut moves = Vec::new();
         let takeable = (empty_squares >>7 ) & if !sideWhite {self.black_pieces | self.black_kings} else {self.white_pieces | self.white_kings};
@@ -196,6 +181,41 @@ impl CheckersBitboard {
         
 
 
+    }
+    pub fn get_non_capture_moves(self: &CheckersBitboard) -> Vec<Move> {
+        let mut moves: Vec<Move> = Vec::new();
+
+        let all_pieces = self.white_pieces | self.white_kings | self.black_pieces | self.black_kings;
+    
+        let pieces_to_move = if self.get_white_to_move() { self.white_pieces | self.white_kings } else { self.black_pieces | self.black_kings };
+
+    
+        let mut pieces_to_move_copy = pieces_to_move;
+        while pieces_to_move_copy != 0 {
+            let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
+            
+
+            pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
+            // Self::pretty_print_bitboard(pieces_to_move_copy);
+            // println!();
+            println!("LSB index: {}", lsb_index);
+            let pushes = if self.get_white_to_move() {
+                generation::LOOKUP_TABLE.all_non_capturing_moves[0][lsb_index as usize]
+            } else {
+                generation::LOOKUP_TABLE.all_non_capturing_moves[1][lsb_index as usize]
+            };
+            Self::pretty_print_bitboard(pushes);
+            println!();
+            let mut att_temp = pushes & !all_pieces;// bitboard of all moves not occupied by any piece
+            while att_temp != 0 {
+                let end = 63 - att_temp.trailing_zeros();
+                att_temp &= att_temp - 1;
+    
+                moves.push(Move::new(lsb_index as u8, end as u8));
+          
+            }
+        }
+        moves
     }
     pub fn pretty_print_bitboard(bitboard: u64) {
         let bitboard = bitboard;
