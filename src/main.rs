@@ -6,13 +6,12 @@ fn main() {
     println!("Hello, world!");
     let mut board = board::GameState::startingPos();
     board.game.printBoard();
-    board.game.move_piece(17, 26);
-    board.game.printBoard();
-    board.game.get_non_capture_moves(false).iter().for_each(|x| {
-        println!("{:?} ", x);
-    });
     // utils::pretty_print_bitboard(generation::LOOKUP_TABLE.all_capturing_moves[0][42]);
     while true {
+
+        board.game.get_all_legal_moves().iter().for_each(|x| {
+            println!("{:?} ", x);
+        });
         //ask for input
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).expect("Failed to read line");
@@ -39,12 +38,9 @@ fn main() {
         let to = input[1].parse::<u8>().unwrap();
         board.game.move_piece(from, to);
         board.game.printBoard();
-        board.game.get_non_capture_moves(false).iter().for_each(|x| {
-            println!("{:?} ", x);
-        });
-        // board.game.get_captures(false).iter().for_each(|x| {
-        //     println!("{:?} ", x);
-        // });
+
+        board.game.white_to_move = !board.game.white_to_move;
+
 
         
     }

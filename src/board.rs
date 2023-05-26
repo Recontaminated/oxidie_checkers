@@ -2,7 +2,6 @@ use crate::{generation, utils::{self, pretty_print_bitboard}};
 
 pub struct GameState {
     pub game: CheckersBitboard,
-    pub turnWhite: bool,
 }
 impl GameState {
     pub fn startingPos() -> GameState {
@@ -12,7 +11,6 @@ impl GameState {
         let game = CheckersBitboard::new(true);
         let mut state = GameState {
             game: game,
-            turnWhite: true,
         };
         state.loadFromString(startingString);
         state
@@ -109,15 +107,17 @@ pub struct CheckersBitboard {
     pub white_pieces: u64,
     pub black_kings: u64,
     pub white_kings: u64,
+    pub white_to_move: bool,
 }
 
 impl CheckersBitboard {
-    pub fn new(side: bool) -> Self {
+    pub fn new(white_to_move: bool) -> Self {
         Self {
             black_pieces: 0,
             white_pieces: 0,
             black_kings: 0,
             white_kings: 0,
+            white_to_move: white_to_move,
         }
     }
 
@@ -167,22 +167,17 @@ impl CheckersBitboard {
         };
         // utils::pretty_print_bitboard(att);
         // println!("lookup index: {}", lookup_index);
-        utils::pretty_print_bitboard(att);
-        println!("");
+
         let mut att_temp = att & !all_occ;
         while att_temp != 0 {
             let end = utils::lsb_idx(&att_temp);
             att_temp &= att_temp - 1;
 
-            pretty_print_bitboard(defending_pieces);
-            println!();
-            pretty_print_bitboard(1u64 << (63-((square + end as u8) / 2)));
             if ((1u64 << (63 -(((square) + end as u8) / 2)) & defending_pieces)) != 0 {
                 let partial_move = Move::new(square, end as u8);
     
                 let mut next_bitboard = *self;
                 next_bitboard.move_piece(square, end as u8);
-                next_bitboard.printBoard();
                 println!("\n\n");
 
                 let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
@@ -264,7 +259,25 @@ impl CheckersBitboard {
         }
         moves
     }
+    pub fn get_all_legal_moves(self: &CheckersBitboard) -> Vec<Move>{
+        let mut moves: Vec<Move> = Vec::new();
 
+        let white_to_move = self.white_to_move;
+
+        let captures = self.get_all_captures(white_to_move);
+        if captures.is_empty() {
+            let non_captures = self.get_non_capture_moves(white_to_move);
+            for non_capture in non_captures {
+                moves.push(non_capture);
+            }
+        } else {
+            for capture in captures {
+                moves.push(capture);
+            }
+        }
+
+        moves
+    }
     fn mask_position(row: usize, col: usize) -> u64 {
         1u64 << 63 - (row * 8 + col)
     }
@@ -277,13 +290,7 @@ impl CheckersBitboard {
         king_piece: bool,
     ) {
         let mask = Self::mask_position(row, col);
-        if black_piece.is_none() == false {
-            if black_piece.unwrap() == false {
-                println!("white piece at row: {}, col: {}", row, col);
-                print!("mask is: ");
-                print!("{:064b}", mask);
-            }
-        }
+        
 
         //check if black_piece is None
         if black_piece.is_none() {
@@ -313,7 +320,6 @@ impl CheckersBitboard {
         let from = from as usize;
         let to = to as usize;
         let mask = CheckersBitboard::mask_position(from / 8, from % 8);
-        utils::pretty_print_bitboard(self.white_pieces);
         let mut piece = 0;
         if self.black_pieces & mask != 0 {
             piece = 1;
