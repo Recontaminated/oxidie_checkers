@@ -9,13 +9,13 @@ fn main() {
     board.game.printBoard();
     // utils::pretty_print_bitboard(generation::LOOKUP_TABLE.all_capturing_moves[0][42]);
     while true {
-
+        println!("side to move: {:?}", board.game.white_to_move);
         board.game.get_all_legal_moves().iter().for_each(|x| {
             println!("{:?} ", x);
         });
         let timestart = std::time::Instant::now();
         println!("seaching depth 12");
-        algo::get_best_move(&board.game, 12);
+        algo::get_best_move(&board.game, 11);
         println!("Time taken: {:?}", timestart.elapsed());
 
         //ask for input
