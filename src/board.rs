@@ -182,7 +182,7 @@ impl CheckersBitboard {
         // utils::pretty_print_bitboard(att_men);
         let att_king = generation::LOOKUP_TABLE.all_capturing_moves[2][square as usize];
 
-        let att = if (1u64 << (64 - square)) & (self.white_kings | self.black_kings) != 0 {
+        let att = if (1u64 << (63 - square)) & (self.white_kings | self.black_kings) != 0 {
             att_king
         } else {
             att_men
@@ -259,17 +259,20 @@ impl CheckersBitboard {
 
         while pieces_to_move_copy != 0 {
             let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
-
+            let isKing = (1u64 << (63 - lsb_index)) & (self.white_kings | self.black_kings) != 0;
             pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
                                                             // Self::pretty_print_bitboard(pieces_to_move_copy);
                                                             // println!();
-
-            let pushes = if white_to_move {
-                generation::LOOKUP_TABLE.all_non_capturing_moves[0][lsb_index as usize]
+            let pushes;
+            if isKing {
+                pushes = generation::LOOKUP_TABLE.all_non_capturing_moves[2][lsb_index as usize];
             } else {
-                generation::LOOKUP_TABLE.all_non_capturing_moves[1][lsb_index as usize]
-            };
-
+                pushes = if white_to_move {
+                    generation::LOOKUP_TABLE.all_non_capturing_moves[0][lsb_index as usize]
+                } else {
+                    generation::LOOKUP_TABLE.all_non_capturing_moves[1][lsb_index as usize]
+                }
+            }
             let mut att_temp = pushes & !all_pieces; // bitboard of all moves not occupied by any piece
             while att_temp != 0 {
                 let end = utils::lsb_idx(&att_temp);
@@ -416,7 +419,7 @@ impl CheckersBitboard {
     }
 
     pub fn printBoard(&self, print_nums: bool) {
-        let numsToLetters = [' ', '○', '●', '○', '●'];
+        let numsToLetters = [' ', '○', '●', 'B', 'W'];
         println!("|---|---|---|---|---|---|---|---|");
         for row in 0..8 {
             print!("|");

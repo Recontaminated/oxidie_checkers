@@ -78,6 +78,10 @@ fn main() {
 
 
             }
+            "allmoves" => {
+                board.game.printBoard(true);
+                let moves = board.game.get_all_legal_moves().iter().for_each(|f| println!("{:?}", f));
+            },
             _ => {
                 println!("invalid command");
             }
