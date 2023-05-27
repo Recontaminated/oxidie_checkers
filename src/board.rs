@@ -1,4 +1,7 @@
-use crate::{generation, utils::{self, pretty_print_bitboard}};
+use crate::{
+    generation,
+    utils::{self, pretty_print_bitboard},
+};
 
 pub struct GameState {
     pub game: CheckersBitboard,
@@ -9,9 +12,7 @@ impl GameState {
         // let file = fs::read_to_string("src/startState.txt").expect("Unable to read file");
         const startingString: &str = "1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1 w";
         let game = CheckersBitboard::new(true);
-        let mut state = GameState {
-            game: game,
-        };
+        let mut state = GameState { game: game };
         state.loadFromString(startingString);
         state
     }
@@ -62,18 +63,40 @@ impl GameState {
         Ok(game)
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Move {
-    sub_moves: Vec<(u8,u8)>,//from,tp
-
+    sub_moves: Vec<(u8, u8)>, //from,tp
 }
 impl Move {
-
-        fn new(from: u8, to: u8) -> Move {
-            Move {
-                sub_moves: vec![(from, to)],
-            }
+    fn new(from: u8, to: u8) -> Move {
+        Move {
+            sub_moves: vec![(from, to)],
         }
+    }
+    pub fn from_uci(uci: Vec<&str>) -> Result<Move, &'static str> {
+        // - normal move:      `move e3f4`
+        // - single capture:   `move f2d4`
+        // - multiple capture: `move f2d4f6`
+        // - multiple moves:   `move d4e3 f2d4f6`
+        let mut submoves: Vec<(u8, u8)> = Vec::new();
+        for i in 0..uci.len() {
+            let from = &uci[i][0..2];
+            let to = &uci[i][2..4];
+            let from = match utils::letter_coord_to_index(from) {
+                Ok(x) => x,
+                Err(e) => return Err(e),
+            };
+            let to = match utils::letter_coord_to_index(to) {
+                Ok(x) => x,
+                Err(e) => return Err(e),
+            };
+            submoves.push((from, to));
+        }
+
+        Ok(Move {
+            sub_moves: submoves,
+        })
+    }
     fn append_moves_from(self: &mut Move, other: &Move) {
         self.sub_moves.extend_from_slice(&other.sub_moves);
     }
@@ -132,7 +155,6 @@ impl CheckersBitboard {
     // }
 
     pub fn get_captures(&self, square: u8, white_to_move: bool) -> Vec<Move> {
-        
         let (attacking_pieces, defending_pieces, lookup_index) = if white_to_move {
             (
                 self.white_pieces | self.white_kings,
@@ -146,21 +168,21 @@ impl CheckersBitboard {
                 1,
             )
         };
-    
+
         let all_occ = attacking_pieces | defending_pieces;
-  
+
         let mut moves: Vec<Move> = Vec::new();
-    
-        let bb = 1u64 << (63-square) & (attacking_pieces | self.white_kings | self.black_kings);
+
+        let bb = 1u64 << (63 - square) & (attacking_pieces | self.white_kings | self.black_kings);
         if bb == 0 {
             return moves;
         }
-    
+
         let att_men = generation::LOOKUP_TABLE.all_capturing_moves[lookup_index][square as usize];
         // utils::pretty_print_bitboard(att_men);
         let att_king = generation::LOOKUP_TABLE.all_capturing_moves[2][square as usize];
-    
-        let att = if (1u64 << square) & (self.white_kings | self.black_kings) != 0 {
+
+        let att = if (1u64 << (64 - square)) & (self.white_kings | self.black_kings) != 0 {
             att_king
         } else {
             att_men
@@ -173,15 +195,14 @@ impl CheckersBitboard {
             let end = utils::lsb_idx(&att_temp);
             att_temp &= att_temp - 1;
 
-            if ((1u64 << (63 -(((square) + end as u8) / 2)) & defending_pieces)) != 0 {
+            if (1u64 << (63 - (((square) + end as u8) / 2)) & defending_pieces) != 0 {
                 let partial_move = Move::new(square, end as u8);
-    
+
                 let mut next_bitboard = *self;
                 next_bitboard.move_piece(square, end as u8);
-                
 
                 let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
-    
+
                 if temp_moves.is_empty() || (end / 8 == 0 || end / 8 == 7) {
                     moves.push(partial_move);
                 } else {
@@ -193,7 +214,7 @@ impl CheckersBitboard {
                 }
             }
         }
-    
+
         moves
     }
     pub fn get_all_captures(self: &CheckersBitboard, white_to_move: bool) -> Vec<Move> {
@@ -211,7 +232,7 @@ impl CheckersBitboard {
             let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
 
             pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
-                                      
+
             let temp_moves = self.get_captures(lsb_index as u8, white_to_move);
 
             for temp_move in temp_moves {
@@ -221,7 +242,7 @@ impl CheckersBitboard {
 
         moves
     }
-    
+
     pub fn get_non_capture_moves(self: &CheckersBitboard, white_to_move: bool) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
 
@@ -259,7 +280,7 @@ impl CheckersBitboard {
         }
         moves
     }
-    pub fn get_all_legal_moves(self: &CheckersBitboard) -> Vec<Move>{
+    pub fn get_all_legal_moves(self: &CheckersBitboard) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
 
         let white_to_move = self.white_to_move;
@@ -290,7 +311,6 @@ impl CheckersBitboard {
         king_piece: bool,
     ) {
         let mask = Self::mask_position(row, col);
-        
 
         //check if black_piece is None
         if black_piece.is_none() {
@@ -317,49 +337,85 @@ impl CheckersBitboard {
         }
     }
     pub fn apply_move(self: &mut CheckersBitboard, mov: &Move) {
-        for sub_move in &mov.sub_moves{
+        for sub_move in &mov.sub_moves {
             let (from, to) = sub_move;
             self.move_piece(*from, *to);
         }
+        self.white_to_move = !self.white_to_move;
     }
 
     pub fn move_piece(self: &mut CheckersBitboard, from: u8, to: u8) {
         let from = from as usize;
         let to = to as usize;
-        let mask = CheckersBitboard::mask_position(from / 8, from % 8);
-        let mut piece = 0;
-        if self.black_pieces & mask != 0 {
-            piece = 1;
-        } else if self.white_pieces & mask != 0 {
-            piece = 2;
-        } else if self.black_kings & mask != 0 {
-            piece = 3;
-        } else if self.white_kings & mask != 0 {
-            piece = 4;
-        }
-        let to = 63 - to; // because we are bitshifting from bottom right we have to flip the board
-        match piece {
-            1 => {
-                self.black_pieces &= !mask;
-                self.black_pieces |= 1u64 << to;
+        let mask = 1u64 << (63 - from);
+
+        let mut piece_type = -1; // 0 = white piece, 1= white king, 2 = black piece, 3 = black king
+        let mut promote = false;
+
+        if self.white_to_move {
+            if mask & self.white_pieces != 0 {
+                piece_type = 0;
+            } else if mask & self.white_kings != 0 {
+                piece_type = 1;
             }
+
+            if piece_type == 0 && to < 8 {
+                promote = true;
+            }
+        } else {
+            if mask & self.black_pieces != 0 {
+                piece_type = 2;
+            } else if mask & self.black_kings != 0 {
+                piece_type = 3;
+            }
+
+            if piece_type == 2 && to > 55 {
+                promote = true;
+            }
+        }
+        // println!("piece type: {} tried to move form {} to {}" , piece_type, from, to);
+        // println!("it was {}", self.white_to_move);
+        // println!("board state");
+        // self.printBoard();
+        match piece_type {
             2 => {
+                self.black_pieces &= !mask;
+                if !promote {
+                    self.black_pieces |= 1u64 << (63 - to);
+                } else {
+                    self.black_kings |= 1u64 << (63 - to);
+                }
+            }
+            0 => {
                 self.white_pieces &= !mask;
-                self.white_pieces |= 1u64 << to;
+                if !promote {
+                    self.white_pieces |= 1u64 << (63 - to);
+                } else {
+                    self.white_kings |= 1u64 << (63 - to);
+                }
             }
             3 => {
                 self.black_kings &= !mask;
-                self.black_kings |= 1u64 << to;
+                self.black_kings |= 1u64 << (63 - to);
             }
-            4 => {
+            1 => {
                 self.white_kings &= !mask;
-                self.white_kings |= 1u64 << to;
+                self.white_kings |= 1u64 << (63 - to);
             }
             _ => panic!("Invalid piece"),
         }
+        // we have to do this last or https://images.duckarmada.com/ckKsmYmwsnDw
+        if from.abs_diff(to) > 9 {
+            let mask = 1u64 << (63 - (from + to) / 2);
+            //apply mask to all bitboards
+            self.black_pieces &= !mask;
+            self.white_pieces &= !mask;
+            self.black_kings &= !mask;
+            self.white_kings &= !mask;
+        }
     }
 
-    pub fn printBoard(&self) {
+    pub fn printBoard(&self, print_nums: bool) {
         let numsToLetters = [' ', '○', '●', '○', '●'];
         println!("|---|---|---|---|---|---|---|---|");
         for row in 0..8 {
@@ -377,13 +433,18 @@ impl CheckersBitboard {
                     piece = 4;
                 }
                 if piece == 0 {
-                    //print the square number but dont make the numbers overflow
-                    if row * 8 + col < 10 {
-                        print!(" {} |", row * 8 + col);
+                    if print_nums {
+                        //print the square number but dont make the numbers overflow
+                        if row * 8 + col < 10 {
+                            print!(" {} |", row * 8 + col);
+                        } else {
+                            print!("{} |", row * 8 + col);
+                        }
+                        continue;
                     } else {
-                        print!("{} |", row * 8 + col);
+                        print!("   |");
+                        continue;
                     }
-                    continue;
                 }
                 print!(" {} |", numsToLetters[piece]);
             }
