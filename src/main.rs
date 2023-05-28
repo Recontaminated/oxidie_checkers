@@ -13,11 +13,11 @@ mod transposition;
     you can try removing the two lines below.
     https://github.com/microsoft/mimalloc
 */
-// #[global_allocator]
-// static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() {
-    println!("Hello, world!");
+    let transposition_table = &mut transposition::TranspositionTable::new();
     let mut board = board::GameState::starting_pos();
     board.game.print_board(false);
     // utils::pretty_print_bitboard(generation::LOOKUP_TABLE.all_capturing_moves[0][42]);
@@ -79,7 +79,8 @@ fn main() {
                     }
                 };
                 let start = std::time::Instant::now();
-                let mov = get_best_move(&board.game, depth);
+                let mov = get_best_move(&board.game, depth, transposition_table);
+                println!("cache hits: {}", transposition_table.cache_hits);
                 println!("best move: {:?}", mov);
                 println!("time: {:?}", start.elapsed());
                 board.game.apply_move(&mov);

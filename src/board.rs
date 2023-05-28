@@ -1,28 +1,28 @@
 use crate::{
     generation,
-    utils::{self, pretty_print_bitboard},
+    utils::{self},
 };
 
 pub struct GameState {
     pub game: CheckersBitboard,
 }
 impl GameState {
-    pub fn startingPos() -> GameState {
+    pub fn starting_pos() -> GameState {
         // open file
         // let file = fs::read_to_string("src/startState.txt").expect("Unable to read file");
-        const startingString: &str = "1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1 w";
+        const STARTING_STRING: &str = "1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1 w";
         let game = CheckersBitboard::new(true);
         let mut state = GameState { game: game };
-        state.loadFromString(startingString);
+        state.load_from_string(STARTING_STRING).unwrap();
         state
     }
 
-    pub fn loadFromString(
+    pub fn load_from_string(
         self: &mut GameState,
-        boardString: &str,
+        board_string: &str,
     ) -> Result<CheckersBitboard, &'static str> {
         // split sting at whitespace
-        let mut parts = boardString.split_whitespace();
+        let mut parts = board_string.split_whitespace();
         // check if there are 8 parts
         if parts.clone().count() != 2 {
             return Err("Invalid board state");
@@ -119,10 +119,7 @@ impl Move {
     }
 }
 
-pub struct Piece {
-    pub is_black: bool,
-    pub is_king: bool,
-}
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct CheckersBitboard {
@@ -144,15 +141,7 @@ impl CheckersBitboard {
         }
     }
 
-    // pub fn get_moves(&self) -> Vec<CheckersBitboard>{
-    //     //    Construct list of moves, where each move is a bitboard
-    //     // containing the current location and the moved location.
-    //     //    ex. 0x11 = 10001, a piece at 1 and a piece at 1 << 4.
 
-    //     let empty_square = !(self.black_pieces | self.white_pieces | self.black_kings | self.white_kings);
-    //     let mut moves = Vec::new();
-
-    // }
 
     pub fn get_captures(&self, square: u8, white_to_move: bool) -> Vec<Move> {
         let (attacking_pieces, defending_pieces, lookup_index) = if white_to_move {
@@ -259,12 +248,12 @@ impl CheckersBitboard {
 
         while pieces_to_move_copy != 0 {
             let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
-            let isKing = (1u64 << (63 - lsb_index)) & (self.white_kings | self.black_kings) != 0;
+            let is_king = (1u64 << (63 - lsb_index)) & (self.white_kings | self.black_kings) != 0;
             pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
                                                             // Self::pretty_print_bitboard(pieces_to_move_copy);
                                                             // println!();
             let pushes;
-            if isKing {
+            if is_king {
                 pushes = generation::LOOKUP_TABLE.all_non_capturing_moves[2][lsb_index as usize];
             } else {
                 pushes = if white_to_move {
@@ -418,8 +407,8 @@ impl CheckersBitboard {
         }
     }
 
-    pub fn printBoard(&self, print_nums: bool) {
-        let numsToLetters = [' ', '○', '●', 'B', 'W'];
+    pub fn print_board(&self, print_nums: bool) {
+        let nums_to_letters = [' ', '○', '●', 'B', 'W'];
         println!("|---|---|---|---|---|---|---|---|");
         for row in 0..8 {
             print!("|");
@@ -449,7 +438,7 @@ impl CheckersBitboard {
                         continue;
                     }
                 }
-                print!(" {} |", numsToLetters[piece]);
+                print!(" {} |", nums_to_letters[piece]);
             }
             println!("\n|---|---|---|---|---|---|---|---|");
         }
