@@ -84,6 +84,7 @@ fn main() {
                 println!("best move: {:?}", mov);
                 println!("time: {:?}", start.elapsed());
                 board.game.apply_move(&mov);
+                board.game.white_to_move = !board.game.white_to_move;
                 board.game.print_board(false);
 
 
