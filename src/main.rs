@@ -4,15 +4,24 @@ mod utils;
 mod board;
 mod generation;
 mod algo;
+mod transposition;
 
-
+/*
+    Custom memory allocator, not required but recommended.
+    During testing this resulted in a ~20% speed up in move generation.
+    If you are having trouble compiling the engine for your target system
+    you can try removing the two lines below.
+    https://github.com/microsoft/mimalloc
+*/
+// #[global_allocator]
+// static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() {
     println!("Hello, world!");
-    let mut board = board::GameState::startingPos();
-    board.game.printBoard(false);
+    let mut board = board::GameState::starting_pos();
+    board.game.print_board(false);
     // utils::pretty_print_bitboard(generation::LOOKUP_TABLE.all_capturing_moves[0][42]);
-    while true {
+    loop {
         println!("side to move: {:?}", board.game.white_to_move);
     
         let mut input = String::new();
@@ -58,7 +67,7 @@ fn main() {
         
                
                 board.game.apply_move(&mov);
-                board.game.printBoard(true);
+                board.game.print_board(true);
             },
 
             "go" => {
@@ -69,17 +78,18 @@ fn main() {
                         continue;
                     }
                 };
-
+                let start = std::time::Instant::now();
                 let mov = get_best_move(&board.game, depth);
                 println!("best move: {:?}", mov);
+                println!("time: {:?}", start.elapsed());
                 board.game.apply_move(&mov);
-                board.game.printBoard(false);
+                board.game.print_board(false);
 
 
 
             }
             "allmoves" => {
-                board.game.printBoard(true);
+                board.game.print_board(true);
                 let moves = board.game.get_all_legal_moves().iter().for_each(|f| println!("{:?}", f));
             },
             _ => {
