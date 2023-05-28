@@ -1,4 +1,3 @@
-use std::arch::x86_64::_SIDD_CMP_RANGES;
 
 use crate::{board::{CheckersBitboard, Move}, transposition::TranspositionTable};
 
@@ -58,13 +57,27 @@ pub fn negamax(
     // }
 
     let orginal_alpha = alpha;
+    
 
-
+    
+    if bitboard.white_to_move != iswhite{
+        panic!()
+    }
     if depth == 0 {
-        if bitboard.get_all_captures(iswhite).len() == 0 {
+     
+        if bitboard.get_all_captures(iswhite).len() == 0{
             return if iswhite { 1 } else { -1 } * evaluation(bitboard);
         } else {
-            return -quiescence(bitboard, depth, -alpha, -beta, !iswhite, nodes_counter);
+            return -quiescence(bitboard, 2, -alpha, -beta, iswhite, nodes_counter);
+            // return -negamax(
+            //     bitboard,
+            //     1,
+            //     -beta,
+            //     -alpha,
+            //     !iswhite,
+            //     nodes_counter,
+            //     transposition_table
+            // );
         }
     }
 
@@ -106,6 +119,7 @@ pub fn negamax(
         // println!("next bitboard");
         // // next_bitboard.printBoard();
         next_bitboard.apply_move(&child_move);
+        next_bitboard.white_to_move = !next_bitboard.white_to_move;
 
         // println!("{}",negamax(&next_bitboard, depth - 1, -beta, -alpha, !iswhite, nodes_counter));
         let child_value = -negamax(
@@ -161,15 +175,19 @@ pub fn quiescence(
     *nodes_counter += 1;
 
     //https://en.wikipedia.org/wiki/Quiescence_search
-    let captures = bitboard.get_all_captures(!iswhite); //TODO: WHAT
+    let captures = bitboard.get_all_captures(iswhite); 
     if depth == 0 || captures.len() == 0 {
         return if iswhite { 1 } else { -1 } * evaluation(bitboard);
     }
+
+
     //check for game over by looking at all moves
     let mut value = -999999;
     for child_move in captures {
         let mut next_bitboard = *bitboard;
         next_bitboard.apply_move(&child_move);
+        next_bitboard.white_to_move = !next_bitboard.white_to_move;
+
         let child_value = -quiescence(
             &next_bitboard,
             depth - 1,
@@ -199,6 +217,8 @@ pub fn get_best_move(bitboard: &CheckersBitboard, depth: i32, transposition_tabl
     for child_move in moves {
         let mut next_bitboard = *bitboard;
         next_bitboard.apply_move(&child_move);
+        next_bitboard.white_to_move = !next_bitboard.white_to_move;
+        
         let child_value = -negamax(
             &next_bitboard,
             depth - 1,

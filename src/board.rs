@@ -121,7 +121,7 @@ impl Move {
 
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CheckersBitboard {
     pub black_pieces: u64,
     pub white_pieces: u64,
@@ -189,7 +189,9 @@ impl CheckersBitboard {
 
                 let mut next_bitboard = *self;
                 next_bitboard.move_piece(square, end as u8);
-
+                if next_bitboard == *self {
+                    panic!("next bitboard is equal to self");
+                }
                 let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
 
                 if temp_moves.is_empty() || (end / 8 == 0 || end / 8 == 7) {
@@ -216,12 +218,15 @@ impl CheckersBitboard {
         };
 
         let mut pieces_to_move_copy = pieces_to_move;
-
+        // print!("{}", white_to_move);
         while pieces_to_move_copy != 0 {
             let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
 
             pieces_to_move_copy &= pieces_to_move_copy - 1; // pop lsb
+            if white_to_move != self.white_to_move{
+                panic!("white to move is not equal to self.white_to_move")
 
+            }
             let temp_moves = self.get_captures(lsb_index as u8, white_to_move);
 
             for temp_move in temp_moves {
@@ -333,7 +338,7 @@ impl CheckersBitboard {
             let (from, to) = sub_move;
             self.move_piece(*from, *to);
         }
-        self.white_to_move = !self.white_to_move;
+        // self.white_to_move = !self.white_to_move;
     }
 
     pub fn move_piece(self: &mut CheckersBitboard, from: u8, to: u8) {
@@ -368,7 +373,7 @@ impl CheckersBitboard {
         // println!("piece type: {} tried to move form {} to {}" , piece_type, from, to);
         // println!("it was {}", self.white_to_move);
         // println!("board state");
-        // self.printBoard();
+        // self.print_board(true);
         match piece_type {
             2 => {
                 self.black_pieces &= !mask;
