@@ -1,4 +1,7 @@
-
+/*
+    This is the module that handles checker engine logic
+    includes evaluation, negamax, and quiescence
+ */
 use crate::{board::{CheckersBitboard, Move}, transposition::TranspositionTable};
 
 pub fn evaluation(bitboard: &CheckersBitboard) -> i32 {
@@ -10,20 +13,33 @@ pub fn evaluation(bitboard: &CheckersBitboard) -> i32 {
         bitboard.black_pieces,
         bitboard.black_kings,
     ];
+
+    // we want backrank to be filled with pieces, but also value center of board and pushing
     let man_values = [
-        0, 0, 0, 0, 0, 0, 0, 0, 24, 0, 10, 0, 8, 0, 9, 0, 0, 8, 0, 10, 0, 10, 0, 24, 3, 0, 4, 0, 5,
-        0, 1, 0, 0, 2, 0, 13, 0, 8, 0, 1, 1, 0, 2, 0, 1, 0, 0, 0, 0, -1, 0, 7, 0, 9, 0, 25, -5, 0,
-        23, 0, 10, 0, 32, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        24,0, 15, 0, 10, 0, 15, 0,
+        0, 8, 0, 10, 0, 10, 0, 25,
+        3, 0, 3, 0, 5, 0, 1, 0,
+        0, 2, 0, 15, 0, 10, 0, 0,
+        1, 0, 2, 0, 1, 0, 0, 0, 
+        0, 0, 0, 7, 0, 9, 0, 25,
+        0, 0, 25, 0, 10, 0, 30, 0,
     ];
-
+// in general we want to control the center of the board, otherwise kings are not helpful near edges 
     let king_values = [
-        0, -7, 0, -1, 0, -3, 0, -10, -5, 0, 0, 0, -1, 0, -1, 0, 0, 1, 0, 10, 0, 8, 0, -1, -1, 0,
-        10, 0, 11, 0, 1, 0, 0, 2, 0, 11, 0, 10, 0, -1, -1, 0, 8, 0, 10, 0, 0, 0, 0, -1, 0, -1, 0,
-        -1, 0, -1, -10, 0, 0, 0, -1, 0, -7, 0,
+        0, -10, 0, -5, 0, -5, 0, -10,
+        -5, 0, 0, 0, -1, 0, -1, 0,
+        0, 1, 0, 10, 0, 8, 0, -10,
+        -5, 0, 10, 0, 11, 0, 1, 0,
+        0, 2, 0, 11, 0, 10, 0, -10,
+        -5, 0, 8, 0, 10, 0, 0, 0,
+         0,-1, 0, -1, 0, -1, 0, -10,
+        -10,0, 0, 0, -1, 0, -7, 0,
     ];
-
+    // sacraficing pieces is very painful
+                        //white king black king
     let piece_value = [100, 1000, -100, -1000];
-
+// go through each position on table and add up the value of the pieces
     for x in 0..4 {
         while pieces[x] != 0 {
             let square = pieces[x].trailing_zeros() as usize;
@@ -42,6 +58,9 @@ pub fn evaluation(bitboard: &CheckersBitboard) -> i32 {
 
     value
 }
+/*
+recursive simpiflied minimax search algorithm
+ */
 pub fn negamax(
     bitboard: &CheckersBitboard,
     depth: i32,
@@ -51,36 +70,27 @@ pub fn negamax(
     nodes_counter: &mut i32,transposition_table:&mut TranspositionTable
 ) -> i32 {
     //https://www.chessprogramming.org/Negamax
+
+
+    // keep track of how many nodes we have visited
     *nodes_counter += 1;
-    // if *nodes_counter % 100000  ==0{
-    //     println!("Moves {}", *nodes_counter);
-    // }
+
 
     let orginal_alpha = alpha;
     
 
-    
-    if bitboard.white_to_move != iswhite{
-        panic!()
-    }
+    // if we are at the bottom of the tree, return the evaluation of the board if the board has no more captures otherwise return the quiescence search
     if depth == 0 {
      
         if bitboard.get_all_captures(iswhite).len() == 0{
             return if iswhite { 1 } else { -1 } * evaluation(bitboard);
         } else {
             return -quiescence(bitboard, 2, -alpha, -beta, iswhite, nodes_counter);
-            // return -negamax(
-            //     bitboard,
-            //     1,
-            //     -beta,
-            //     -alpha,
-            //     !iswhite,
-            //     nodes_counter,
-            //     transposition_table
-            // );
+
         }
     }
-
+// see if we have a cached value for this position
+// https://stackoverflow.com/questions/69023024/understanding-negamax-with-transposition-tables
     match transposition_table.get(bitboard) {
         Some(cached_position) => {
             if cached_position.depth as i32 >= depth {
@@ -89,12 +99,12 @@ pub fn negamax(
             
                     return cached_position.value;
                 }
-
                 else
+
                 if cached_position.flag == crate::transposition::flag::LOWERBOUND && cached_position.value > alpha {
                     alpha = cached_position.value;
                 }
-
+                
                 else if cached_position.flag == crate::transposition::flag::UPPERBOUND && cached_position.value < beta {
                     beta = cached_position.value;
                 }
@@ -111,17 +121,18 @@ pub fn negamax(
     }
 
     let child_nodes = bitboard.get_all_legal_moves(); // TODO: could speed up here by sharing
+    // large negative number to start
     let mut best_value = -9999999;
     let mut alpha = alpha;
 
     for child_move in child_nodes {
-        let mut next_bitboard = *bitboard;
-        // println!("next bitboard");
-        // // next_bitboard.printBoard();
-        next_bitboard.apply_move(&child_move);
-        next_bitboard.white_to_move = !next_bitboard.white_to_move;
 
-        // println!("{}",negamax(&next_bitboard, depth - 1, -beta, -alpha, !iswhite, nodes_counter));
+        // by dereferencing the bitboard we can avoid expensive cloning. this allows us to unmake move
+        let mut next_bitboard = *bitboard;
+        next_bitboard.apply_move(&child_move);
+        // switch turns
+        next_bitboard.white_to_move = !next_bitboard.white_to_move;
+        
         let child_value = -negamax(
             &next_bitboard,
             depth - 1,
@@ -136,9 +147,12 @@ pub fn negamax(
 
         if alpha >= beta {
             // print!("pruned");
+  
             break;
         }
     }
+
+    //store the value in the transposition table
     if best_value <= orginal_alpha{
         transposition_table.put(bitboard, crate::transposition::CachedValue{
             value: best_value,
@@ -164,6 +178,10 @@ pub fn negamax(
     
     best_value
 }
+
+/*
+    helps to avoid the horizon effect, where the engine will make a move that looks good but is actually bad, or vice versa 
+ */
 pub fn quiescence(
     bitboard: &CheckersBitboard,
     depth: i32,
@@ -172,7 +190,7 @@ pub fn quiescence(
     iswhite: bool,
     nodes_counter: &mut i32,
 ) -> i32 {
-    *nodes_counter += 1;
+    // *nodes_counter += 1;
 
     //https://en.wikipedia.org/wiki/Quiescence_search
     let captures = bitboard.get_all_captures(iswhite); 
@@ -181,7 +199,7 @@ pub fn quiescence(
     }
 
 
-    //check for game over by looking at all moves
+    //essentially just minimax but only looking at captures
     let mut value = -999999;
     for child_move in captures {
         let mut next_bitboard = *bitboard;
@@ -205,11 +223,16 @@ pub fn quiescence(
 
     value
 }
+
+//debug trait allows us to print out the moves without defining a custom print function
 #[derive(Debug)]
 struct EvaluatedMove {
     mov: Move,
     value: i32,
 }
+/*
+    returns the best move for the current position
+ */
 pub fn get_best_move(bitboard: &CheckersBitboard, depth: i32, transposition_table:&mut TranspositionTable) -> Move {
     let moves: Vec<Move> = bitboard.get_all_legal_moves();
     let mut evaled_moved: Vec<EvaluatedMove> = Vec::new();

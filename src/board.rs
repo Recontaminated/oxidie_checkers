@@ -2,11 +2,13 @@ use crate::{
     generation,
     utils::{self},
 };
-
+// wrapper class that holds bitboard. mostly holds methods for interacting with bitboard
 pub struct GameState {
     pub game: CheckersBitboard,
 }
+// public methods for GameState
 impl GameState {
+    // loads the starting position from a file or string
     pub fn starting_pos() -> GameState {
         // open file
         // let file = fs::read_to_string("src/startState.txt").expect("Unable to read file");
@@ -29,17 +31,19 @@ impl GameState {
         }
 
         let state_string = parts.nth(0).unwrap();
-        // let turn_string = parts.nth(1).unwrap();
 
         let game = CheckersBitboard::new(true);
         let mut row = 0;
         let mut col = 0;
+        //rust's type system is really nice here because it forces us to handle all cases
         for c in state_string.chars() {
+            // if we are at the end of the row, go to the next row
             match c {
                 '/' => {
                     row += 1;
                     col = 0;
                 }
+                // if we are at a piece, set the piece
                 'b' | 'w' | 'B' | 'W' => {
                     match c {
                         'b' => self.game.set_position(row, col, Some(true), false),
@@ -50,6 +54,7 @@ impl GameState {
                     };
                     col += 1;
                 }
+                // if we are at a number, skip that many squares
                 _ if c.is_digit(10) => {
                     let num = c.to_digit(10).unwrap() as i8;
                     for _ in 0..num {
@@ -63,6 +68,8 @@ impl GameState {
         Ok(game)
     }
 }
+// move needs to be able to be equal to other move, and needs to be able to be printed. Derive is almost like java interface
+//move holds list of submoves incase of forced capture
 #[derive(Debug, Clone, PartialEq)]
 pub struct Move {
     sub_moves: Vec<(u8, u8)>, //from,tp
@@ -73,6 +80,7 @@ impl Move {
             sub_moves: vec![(from, to)],
         }
     }
+    // uci move notation is a string of 4 characters, the first 2 are the from square, the last 2 are the to square
     pub fn from_uci(uci: Vec<&str>) -> Result<Move, &'static str> {
         // - normal move:      `move e3f4`
         // - single capture:   `move f2d4`
@@ -97,9 +105,12 @@ impl Move {
             sub_moves: submoves,
         })
     }
+    // we need to use string slices because rust wont let us move out of self
+    // what this does is it takes the moves from the other move and appends them to the end of this move
     fn append_moves_from(self: &mut Move, other: &Move) {
         self.sub_moves.extend_from_slice(&other.sub_moves);
     }
+    // nice pretty print for move
     fn print(self: &Move) -> String {
         let conversion = [
             "A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8", "A7", "B7", "C7", "D7", "E7", "F7",
@@ -120,7 +131,9 @@ impl Move {
 }
 
 
-
+/*
+    Our bitboard consists of u64s TODO: refactor to only 3 and have king handle 1 bb
+ */
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CheckersBitboard {
     pub black_pieces: u64,
@@ -142,8 +155,11 @@ impl CheckersBitboard {
     }
 
 
-
+    /*
+        returns a vector of all the captures that can be made from a given square
+     */
     pub fn get_captures(&self, square: u8, white_to_move: bool) -> Vec<Move> {
+        //if white to move, we are looking for white pieces to capture black pieces
         let (attacking_pieces, defending_pieces, lookup_index) = if white_to_move {
             (
                 self.white_pieces | self.white_kings,
@@ -157,46 +173,46 @@ impl CheckersBitboard {
                 1,
             )
         };
-
+        // create a bb of all occupied squares because we cant move into them
         let all_occ = attacking_pieces | defending_pieces;
 
         let mut moves: Vec<Move> = Vec::new();
-
-        let bb = 1u64 << (63 - square) & (attacking_pieces | self.white_kings | self.black_kings);
+        // bitboard mask of the piece we are looking at and if it is a king or if there is even a piece there
+        let bb = 1u64 << (63 - square) & (attacking_pieces); // | self.white_kings | self.black_kings
         if bb == 0 {
             return moves;
         }
-
-        let att_men = generation::LOOKUP_TABLE.all_capturing_moves[lookup_index][square as usize];
-        // utils::pretty_print_bitboard(att_men);
-        let att_king = generation::LOOKUP_TABLE.all_capturing_moves[2][square as usize];
+        
+  
 
         let att = if (1u64 << (63 - square)) & (self.white_kings | self.black_kings) != 0 {
-            att_king
+            generation::LOOKUP_TABLE.all_capturing_moves[2][square as usize]
         } else {
-            att_men
+            generation::LOOKUP_TABLE.all_capturing_moves[lookup_index][square as usize]
         };
-        // utils::pretty_print_bitboard(att);
-        // println!("lookup index: {}", lookup_index);
 
+
+        //we can only move into non occupied squares
         let mut att_temp = att & !all_occ;
         while att_temp != 0 {
+            // grab a move we can make, and remove it from the bitboard of moves. this is the same as popping the lsb
             let end = utils::lsb_idx(&att_temp);
-            att_temp &= att_temp - 1;
+            att_temp &= att_temp - 1; //pop ths lsb
 
+            // we can only make capture if there is a piece in between the start and end square
             if (1u64 << (63 - (((square) + end as u8) / 2)) & defending_pieces) != 0 {
                 let partial_move = Move::new(square, end as u8);
-
+                // make a copy of the board and apply the move to it
                 let mut next_bitboard = *self;
                 next_bitboard.move_piece(square, end as u8);
-                if next_bitboard == *self {
-                    panic!("next bitboard is equal to self");
-                }
+                //recursively call get captures on the new board
                 let temp_moves = Self::get_captures(&next_bitboard, end as u8, white_to_move);
-
-                if temp_moves.is_empty() || (end / 8 == 0 || end / 8 == 7) {
+                // if there are no more captures, or we are at the end of the board, add the move to the list of moves
+                if temp_moves.is_empty() || (end / 8 == 0 || end / 8 == 7) { //TODO: can we capture once we move into king and then go back?????
                     moves.push(partial_move);
-                } else {
+                } 
+                else {
+                    //chained capture, we need to append the moves from the recursive call to the current move
                     for temp_move in temp_moves {
                         let mut concat_move = partial_move.clone();
                         concat_move.append_moves_from(&temp_move);
@@ -208,6 +224,10 @@ impl CheckersBitboard {
 
         moves
     }
+    // uses get captures to get all captures from all pieces
+    /*
+        returns a vector of all the captures that can be made from game state
+     */
     pub fn get_all_captures(self: &CheckersBitboard, white_to_move: bool) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
 
@@ -218,7 +238,9 @@ impl CheckersBitboard {
         };
 
         let mut pieces_to_move_copy = pieces_to_move;
-        // print!("{}", white_to_move);
+       
+
+       // go over all pieces that can move, see if they have captures
         while pieces_to_move_copy != 0 {
             let lsb_index = 63 - pieces_to_move_copy.trailing_zeros();
 
@@ -237,6 +259,9 @@ impl CheckersBitboard {
         moves
     }
 
+    /*
+        returns a vector of all the non captures that can be made from game state
+     */
     pub fn get_non_capture_moves(self: &CheckersBitboard, white_to_move: bool) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
 
@@ -258,6 +283,8 @@ impl CheckersBitboard {
                                                             // Self::pretty_print_bitboard(pieces_to_move_copy);
                                                             // println!();
             let pushes;
+
+            // query lookup table depending on if we are a king or not amd what color it is
             if is_king {
                 pushes = generation::LOOKUP_TABLE.all_non_capturing_moves[2][lsb_index as usize];
             } else {
@@ -277,6 +304,10 @@ impl CheckersBitboard {
         }
         moves
     }
+
+    /* 
+    returns combined vec of all captures and non captures. If we have captures, we can only make captures
+    */
     pub fn get_all_legal_moves(self: &CheckersBitboard) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
 
@@ -296,11 +327,12 @@ impl CheckersBitboard {
 
         moves
     }
+    // helper function to create a bitboard mask of a position
     fn mask_position(row: usize, col: usize) -> u64 {
         1u64 << 63 - (row * 8 + col)
     }
-
-    pub fn set_position(
+     
+     fn set_position(
         &mut self,
         row: usize,
         col: usize,
@@ -309,7 +341,7 @@ impl CheckersBitboard {
     ) {
         let mask = Self::mask_position(row, col);
 
-        //check if black_piece is None
+        // remove the piece from all bitboards so we dont have to look for it
         if black_piece.is_none() {
             self.black_pieces &= !mask;
             self.white_pieces &= !mask;
@@ -318,7 +350,7 @@ impl CheckersBitboard {
             return;
         }
 
-        let black_piece = black_piece.unwrap();
+        let black_piece = black_piece.unwrap();// currently this will panic if we try to set a piece to none probably behavior we dont want?
         if king_piece {
             if black_piece {
                 self.black_kings |= mask;
@@ -333,6 +365,7 @@ impl CheckersBitboard {
             }
         }
     }
+    // goes through all submoves of a move and applies them to the board (eg. captures)
     pub fn apply_move(self: &mut CheckersBitboard, mov: &Move) {
         for sub_move in &mov.sub_moves {
             let (from, to) = sub_move;
@@ -340,7 +373,7 @@ impl CheckersBitboard {
         }
         // self.white_to_move = !self.white_to_move;
     }
-
+//   human readable way of moving a piece on board handles promotion and validity
     pub fn move_piece(self: &mut CheckersBitboard, from: u8, to: u8) {
         let from = from as usize;
         let to = to as usize;
@@ -348,7 +381,7 @@ impl CheckersBitboard {
 
         let mut piece_type = -1; // 0 = white piece, 1= white king, 2 = black piece, 3 = black king
         let mut promote = false;
-
+            // figure out what type of piece we are moving
         if self.white_to_move {
             if mask & self.white_pieces != 0 {
                 piece_type = 0;
@@ -370,10 +403,7 @@ impl CheckersBitboard {
                 promote = true;
             }
         }
-        // println!("piece type: {} tried to move form {} to {}" , piece_type, from, to);
-        // println!("it was {}", self.white_to_move);
-        // println!("board state");
-        // self.print_board(true);
+        // make the moves
         match piece_type {
             2 => {
                 self.black_pieces &= !mask;
@@ -402,16 +432,17 @@ impl CheckersBitboard {
             _ => panic!("Invalid piece"),
         }
         // we have to do this last or https://images.duckarmada.com/ckKsmYmwsnDw
+        // just checking if we captured a piece by seeing if the distance between the from and to square is greater than 9
         if from.abs_diff(to) > 9 {
             let mask = 1u64 << (63 - (from + to) / 2);
-            //apply mask to all bitboards
+            //apply mask to all bitboards to remove the piece we captured
             self.black_pieces &= !mask;
             self.white_pieces &= !mask;
             self.black_kings &= !mask;
             self.white_kings &= !mask;
         }
     }
-
+    // helper function to print bitboard in a human readable way
     pub fn print_board(&self, print_nums: bool) {
         let nums_to_letters = [' ', '○', '●', 'B', 'W'];
         println!("|---|---|---|---|---|---|---|---|");
@@ -449,60 +480,4 @@ impl CheckersBitboard {
         }
     }
 }
-// impl CheckersBitboard {
 
-//     pub fn loadFromString(boardString: &String) -> Result<CheckersBitboard, &'static str> {
-//         // split sting at whitespace
-//         let mut parts = boardString.split_whitespace();
-//         // check if there are 8 parts
-//         if parts.clone().count() != 2 {
-//             return Err("Invalid board state");
-//         }
-
-//         let state_string = parts.nth(0).unwrap();
-//         // let turn_string = parts.nth(1).unwrap();
-
-//         let mut game = CheckersBitboard::new();
-//         let mut row = 0;
-//         let mut col = 0;
-//         for c in state_string.chars() {
-//             match c {
-//                 '/' => {
-//                     row += 1;
-//                     col = 0;
-//                 }
-//                 'b' | 'w' | 'B' | 'W' => {
-//                     game.board[row][col] = match c {
-//                         'b' => 2,
-//                         'w' => 1,
-//                         'B' => 4,
-//                         'W' => 3,
-//                         _ => unreachable!(),
-//                     };
-//                     col += 1;
-//                 }
-//                 _ if c.is_digit(10) => {
-//                     let num = c.to_digit(10).unwrap() as i8;
-//                     for _ in 0..num {
-//                         game.board[row][col] = 0;
-//                         col += 1;
-//                     }
-//                 }
-//                 _ => return Err("Invalid Character found in board state character was "),
-//             }
-//         }
-//         Ok(game)
-//     }
-
-//     pub fn printBoard(&self) {
-//         let numsToLetters = [' ', '○', '●', '○', '●'];
-//         println!("|---|---|---|---|---|---|---|---|");
-//         for row in self.board.iter() {
-//             print!("| ");
-//             for col in row.iter() {
-//                 print!("{} | ", numsToLetters[*col as usize]);
-//             }
-//             println!("\n|---|---|---|---|---|---|---|---|");
-//         }
-//     }
-// }

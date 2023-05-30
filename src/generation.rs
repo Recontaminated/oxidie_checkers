@@ -1,5 +1,12 @@
+/*
+    This is the module that handles the move table
+ */
+
+//allos us to statically have one instance of the lookup table
 use once_cell::sync::Lazy;
 
+// oop equivalent of instance vars sort of
+// holds all the moves for each piece
 pub struct LookupMoves {
     pub all_non_capturing_moves: [[u64; 64];3],// white black, king
     pub all_capturing_moves: [[u64; 64];3],
