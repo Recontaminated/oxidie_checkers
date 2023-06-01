@@ -1,4 +1,4 @@
-# POLY CHECKERS INTERFACE: a standardized communications method for checkers engines and GUIs
+#CHECKERS INTERFACE: a standardized communications method for checkers engines and GUIs
 
 ----------------------------------
 
