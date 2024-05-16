@@ -11,3 +11,4 @@ once_cell = "1.8.0"
 #if you are having trouble compiling for your system comment this and the global allocator in the main.rs out 
 mimalloc = { version = "*", default-features = false }
 rand = "0.8.5"
+
